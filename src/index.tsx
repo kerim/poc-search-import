@@ -1,6 +1,6 @@
 import '@logseq/libs'
 import React from 'react'
-import ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import '@mantine/core/styles.css'
 import { SearchUI } from './SearchUI'
@@ -166,66 +166,94 @@ async function importZoteroItem(item: ZoteroItem): Promise<void> {
   }
 }
 
-// Render React UI
-function renderSearchUI() {
-  const container = document.getElementById('zotero-search-ui')
-  if (!container) {
-    console.error('Search UI container not found')
+// Main plugin entry
+const main = async () => {
+  console.log('POC 6: Search & Import with React UI loaded')
+
+  // Get the app div that Logseq provides
+  const el = document.getElementById('app')
+  if (!el) {
+    console.error('App element not found')
     return
   }
 
-  const root = ReactDOM.createRoot(container)
-  root.render(
-    <React.StrictMode>
-      <MantineProvider>
-        <SearchUI
-          onImport={importZoteroItem}
-          checkIfInGraph={checkIfInGraph}
-        />
-      </MantineProvider>
-    </React.StrictMode>
-  )
-}
-
-// Main plugin entry
-async function main() {
-  console.log('POC 6: Search & Import with React UI loaded')
+  // Create root once
+  const root = createRoot(el)
 
   // Register slash command to open search
   logseq.Editor.registerSlashCommand('Search Zotero', async () => {
+    root.render(
+      <React.StrictMode>
+        <MantineProvider>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+            onClick={(e) => {
+              // Close on backdrop click
+              if (e.target === e.currentTarget) {
+                logseq.hideMainUI()
+              }
+            }}
+          >
+            <SearchUI
+              onImport={importZoteroItem}
+              checkIfInGraph={checkIfInGraph}
+            />
+          </div>
+        </MantineProvider>
+      </React.StrictMode>
+    )
     logseq.showMainUI()
   })
 
-  // Provide UI
-  logseq.provideUI({
-    key: 'zotero-search-ui',
-    path: '#zotero-search-ui',
-    template: `
-      <div id="zotero-search-modal" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-      " data-on-click="hideUI">
-        <div id="zotero-search-ui"></div>
-      </div>
-    `
-  })
-
-  // Provide model
+  // Register toolbar button
   logseq.provideModel({
-    hideUI() {
-      logseq.hideMainUI()
+    async showSearchUI() {
+      root.render(
+        <React.StrictMode>
+          <MantineProvider>
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}
+              onClick={(e) => {
+                // Close on backdrop click
+                if (e.target === e.currentTarget) {
+                  logseq.hideMainUI()
+                }
+              }}
+            >
+              <SearchUI
+                onImport={importZoteroItem}
+                checkIfInGraph={checkIfInGraph}
+              />
+            </div>
+          </MantineProvider>
+        </React.StrictMode>
+      )
+      logseq.showMainUI()
     }
   })
 
-  // Register toolbar button
   logseq.App.registerUIItem('toolbar', {
     key: 'zotero-search',
     template: `
@@ -235,19 +263,6 @@ async function main() {
         <span>🔍</span>
       </a>
     `
-  })
-
-  logseq.provideModel({
-    showSearchUI() {
-      logseq.showMainUI()
-    }
-  })
-
-  // Render UI when shown
-  logseq.on('ui:visible:changed', ({ visible }) => {
-    if (visible) {
-      setTimeout(renderSearchUI, 100)
-    }
   })
 
   logseq.UI.showMsg('Zotero Search loaded! Click 🔍 or use /Search Zotero', 'success', { timeout: 3000 })

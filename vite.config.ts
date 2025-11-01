@@ -6,17 +6,9 @@ export default defineConfig({
   build: {
     target: 'esnext',
     minify: false,
+    sourcemap: false,
     rollupOptions: {
-      input: 'src/index.tsx',
-      output: {
-        dir: 'dist',
-        entryFileNames: 'index.js',
-        format: 'iife',
-        extend: true,
-        globals: {
-          '@logseq/libs': 'logseq'
-        }
-      },
+      input: 'index.html',
       external: ['@logseq/libs'],
     },
   },

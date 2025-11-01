@@ -13,7 +13,8 @@
   "logseq": {
     "id": "poc-search-import",
     "title": "POC: Search & Import",
-    "icon": "./icon.svg"
+    "icon": "./icon.svg",
+    "main": "dist/index.html"
   },
   "dependencies": {
     "@logseq/libs": "^0.0.17",
