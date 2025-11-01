@@ -394,10 +394,28 @@ async function main() {
   console.log('\nOr click 🔍 button for instructions')
 
   // Expose functions to window for console access
+  // Use globalThis to ensure we're setting on the actual global object
   // @ts-ignore
-  window.searchZotero = runSearchAndImport
+  globalThis.searchZotero = runSearchAndImport
   // @ts-ignore
-  window.importZoteroItemByNumber = importByNumber
+  globalThis.importZoteroItemByNumber = importByNumber
+
+  // Also try window for redundancy
+  // @ts-ignore
+  if (typeof window !== 'undefined') {
+    // @ts-ignore
+    window.searchZotero = runSearchAndImport
+    // @ts-ignore
+    window.importZoteroItemByNumber = importByNumber
+  }
+
+  // @ts-ignore
+  console.log('Functions exposed:', {
+    // @ts-ignore
+    searchZotero: typeof globalThis.searchZotero,
+    // @ts-ignore
+    importZoteroItemByNumber: typeof globalThis.importZoteroItemByNumber
+  })
 
   // Register slash command
   logseq.Editor.registerSlashCommand('POC: Search & Import from Zotero', async () => {
