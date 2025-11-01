@@ -66,20 +66,32 @@ pnpm build
 
 ## Usage Flow
 
-**Note:** For POC simplicity, this version searches for a default term and automatically imports the first non-duplicate item found. Full search UI will be implemented in production plugin.
+**Console-based UI:** This POC uses browser console for user interaction since Logseq's plugin API doesn't have built-in input dialogs. Production plugin will use React UI.
 
-1. Click 🔍 button or use slash command
-2. System searches for "deglobalization" (hardcoded in `DEFAULT_SEARCH`)
-3. System checks each result for duplicates
-4. System automatically imports first item NOT in graph
-5. Results logged to console with status:
-   - ✅ IN GRAPH (skipped)
-   - ⬜ NOT IN GRAPH (imported)
+### Search for Items
 
-**To test different search terms:**
-- Edit `DEFAULT_SEARCH` constant in `src/index.ts`
-- Rebuild with `pnpm build`
-- Reload plugin in Logseq
+In browser console:
+```javascript
+await window.searchZotero("deglobalization")
+// or
+await window.searchZotero("Roche")
+```
+
+Results displayed in console with:
+- ✅ ALREADY IN GRAPH - Item exists (skip import)
+- ⬜ NOT IN GRAPH - New item (ready to import)
+
+### Import Specific Item
+
+After search, import by number:
+```javascript
+await window.importZoteroItemByNumber(1)  // Import first item
+await window.importZoteroItemByNumber(2)  // Import second item
+```
+
+### Alternative
+
+Click 🔍 toolbar button to see usage instructions
 
 ## Test Scenarios
 
@@ -136,11 +148,12 @@ _To be filled in after testing_
 - `inGraph` property calculated during search
 
 **POC 6:**
-- Simplified approach: hardcoded search term
-- Automatic import of first non-duplicate
-- Console logging for results inspection
-- Focuses on testing core functionality (search API, duplicate detection, import)
-- UI complexity deferred to production
+- Console-based UI (no React needed for POC)
+- User enters search terms via `window.searchZotero()`
+- Results displayed in console with status
+- User selects specific item to import via `window.importZoteroItemByNumber()`
+- Property-based duplicate detection using `logseq.DB.q()`
+- Focuses on testing core functionality
 
 **For Production Plugin:**
 - Will use React UI similar to original plugin
@@ -162,12 +175,21 @@ After POC 6 success:
 ```typescript
 // Check if item already exists in Logseq
 async function checkIfInGraph(item: ZoteroItem): Promise<boolean> {
-  // Get page title without #zot tag for lookup
-  const pageName = item.data.title || `Zotero Item ${item.data.key}`
-  const page = await logseq.Editor.getPage(pageName)
-  return !!page
+  // Check by zoteroKey property - most reliable method
+  const zoteroKey = item.key
+
+  // Query database for pages with this zoteroKey property
+  const query = `(property zoteroKey "${zoteroKey}")`
+  const results = await logseq.DB.q(query)
+
+  return !!(results && results.length > 0)
 }
 ```
+
+**Why query by zoteroKey?**
+- Most reliable: unique identifier for each Zotero item
+- Avoids false positives from title-only matching
+- Works even if page title is modified
 
 ### Search API Format
 ```typescript
