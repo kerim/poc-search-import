@@ -10,6 +10,11 @@ export default defineConfig({
         dir: 'dist',
         entryFileNames: 'index.js',
         format: 'iife',
+        // Expose globals - though logseq plugins run in their own context
+        extend: true,
+        globals: {
+          '@logseq/libs': 'logseq'
+        }
       },
       external: ['@logseq/libs'],
     },

@@ -394,13 +394,15 @@ async function main() {
   console.log('\nOr click 🔍 button for instructions')
 
   // Expose functions to window for console access
-  // Use globalThis to ensure we're setting on the actual global object
+  // Try multiple approaches to ensure exposure
+
+  // 1. globalThis
   // @ts-ignore
   globalThis.searchZotero = runSearchAndImport
   // @ts-ignore
   globalThis.importZoteroItemByNumber = importByNumber
 
-  // Also try window for redundancy
+  // 2. window
   // @ts-ignore
   if (typeof window !== 'undefined') {
     // @ts-ignore
@@ -409,12 +411,46 @@ async function main() {
     window.importZoteroItemByNumber = importByNumber
   }
 
+  // 3. parent.window (if in iframe)
   // @ts-ignore
-  console.log('Functions exposed:', {
+  try {
     // @ts-ignore
-    searchZotero: typeof globalThis.searchZotero,
+    if (typeof parent !== 'undefined' && parent.window) {
+      // @ts-ignore
+      parent.window.searchZotero = runSearchAndImport
+      // @ts-ignore
+      parent.window.importZoteroItemByNumber = importByNumber
+      console.log('Functions exposed to parent.window')
+    }
+  } catch (e) {
+    console.log('Could not expose to parent.window:', e)
+  }
+
+  // 4. top.window (if in nested iframe)
+  // @ts-ignore
+  try {
     // @ts-ignore
-    importZoteroItemByNumber: typeof globalThis.importZoteroItemByNumber
+    if (typeof top !== 'undefined' && top.window && top !== window) {
+      // @ts-ignore
+      top.window.searchZotero = runSearchAndImport
+      // @ts-ignore
+      top.window.importZoteroItemByNumber = importByNumber
+      console.log('Functions exposed to top.window')
+    }
+  } catch (e) {
+    console.log('Could not expose to top.window:', e)
+  }
+
+  // Debug info
+  console.log('Context info:', {
+    hasWindow: typeof window !== 'undefined',
+    hasParent: typeof parent !== 'undefined',
+    hasTop: typeof top !== 'undefined',
+    inIframe: window !== window.parent,
+    // @ts-ignore
+    searchZoteroOnGlobalThis: typeof globalThis.searchZotero,
+    // @ts-ignore
+    searchZoteroOnWindow: typeof window?.searchZotero
   })
 
   // Register slash command
