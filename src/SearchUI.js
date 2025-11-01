@@ -1,6 +1,6 @@
 import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 import { useState } from 'react';
-import { Flex, Input, Text, Title, Badge, Button, Group } from '@mantine/core';
+import { Flex, Input, Text, Title, Badge } from '@mantine/core';
 const ZOTERO_API_BASE = 'http://localhost:23119/api/users/0';
 function formatCreator(creator) {
     if (creator.name)
@@ -18,7 +18,7 @@ function extractYear(dateStr) {
     const yearMatch = dateStr.match(/\b(19\d{2}|20\d{2})\b/);
     return yearMatch ? yearMatch[1] : 'No date';
 }
-export const SearchUI = ({ onImport, onInsertLink, checkIfInGraph }) => {
+export const SearchUI = ({ onImport, checkIfInGraph }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
     const [searching, setSearching] = useState(false);
@@ -87,7 +87,6 @@ export const SearchUI = ({ onImport, onInsertLink, checkIfInGraph }) => {
     return (_jsxs(Flex, { direction: "column", style: {
             width: '600px',
             maxHeight: '500px',
-            background: '#fff',
             border: '1px solid #ddd',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
@@ -110,6 +109,12 @@ export const SearchUI = ({ onImport, onInsertLink, checkIfInGraph }) => {
                     const isImporting = importing === item.key;
                     return (_jsxs(Flex, { direction: "row", justify: "space-between", p: "md", style: {
                             borderBottom: '1px solid #eee',
-                        }, children: [_jsxs(Flex, { direction: "column", style: { flex: 1 }, children: [_jsxs(Title, { size: "sm", mb: 4, children: [data.title || 'Untitled', _jsx(Badge, { ml: 8, size: "sm", color: "gray", variant: "outline", children: data.itemType })] }), _jsxs(Text, { size: "xs", c: "dimmed", children: [authors, " (", year, ")"] })] }), _jsxs(Flex, { align: "center", pl: "md", gap: "xs", children: [inGraph && (_jsx(Badge, { size: "sm", color: "green", variant: "light", children: "\u2713 In graph" })), _jsxs(Group, { gap: "xs", children: [_jsx(Button, { size: "xs", variant: "light", color: "blue", onClick: () => onInsertLink(item), disabled: isImporting, children: "Insert Link" }), _jsx(Button, { size: "xs", variant: "filled", color: inGraph ? 'gray' : 'green', onClick: () => handleImport(item), disabled: isImporting || inGraph, loading: isImporting, children: inGraph ? 'Already Imported' : 'Import' })] })] })] }, item.key));
+                            cursor: inGraph || isImporting ? 'default' : 'pointer',
+                            opacity: inGraph || isImporting ? 0.6 : 1,
+                            pointerEvents: isImporting ? 'none' : 'auto',
+                        }, onClick: () => {
+                            if (!inGraph && !isImporting)
+                                handleImport(item);
+                        }, children: [_jsxs(Flex, { direction: "column", style: { flex: 1 }, children: [_jsxs(Title, { size: "sm", mb: 4, children: [data.title || 'Untitled', _jsx(Badge, { ml: 8, size: "sm", color: "gray", variant: "outline", children: data.itemType })] }), _jsxs(Text, { size: "xs", c: "dimmed", children: [authors, " (", year, ")"] })] }), _jsx(Flex, { align: "center", pl: "md", children: _jsx(Badge, { size: "sm", color: isImporting ? 'blue' : inGraph ? 'green' : 'red', variant: "light", children: isImporting ? 'Importing...' : inGraph ? '✓ In graph' : 'Click to import' }) })] }, item.key));
                 }) })] }));
 };

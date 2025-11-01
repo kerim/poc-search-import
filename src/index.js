@@ -131,49 +131,6 @@ async function importZoteroItem(item) {
         console.log(`[IMPORT END] ${item.key}`);
     }
 }
-// Store current block context for inserting links
-let currentBlockContext = null;
-// Insert link to Zotero item at current block or journal
-async function insertLinkToItem(item) {
-    try {
-        const data = item.data;
-        const pageTitle = createPageTitle(data);
-        // Check if page exists, if not create it first
-        const alreadyExists = await checkIfInGraph(item);
-        if (!alreadyExists) {
-            logseq.UI.showMsg(`Page doesn't exist yet. Importing first...`, 'info');
-            await importZoteroItem(item);
-        }
-        // Remove #zot tag to get clean page name for link
-        const linkTitle = pageTitle.replace(/ #zot$/, '');
-        // Insert link at current block or today's journal
-        if (currentBlockContext) {
-            // Insert at current block
-            const block = await logseq.Editor.getBlock(currentBlockContext.uuid);
-            if (block) {
-                const currentContent = block.content || '';
-                const newContent = currentContent
-                    ? `${currentContent} [[${linkTitle}]]`
-                    : `[[${linkTitle}]]`;
-                await logseq.Editor.updateBlock(currentBlockContext.uuid, newContent);
-                logseq.UI.showMsg(`✓ Link inserted at current block`, 'success');
-            }
-        }
-        else {
-            // Insert at today's journal
-            const today = new Date();
-            const journalDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
-            await logseq.Editor.appendBlockInPage(journalDate, `[[${linkTitle}]]`);
-            logseq.UI.showMsg(`✓ Link inserted in today's journal`, 'success');
-        }
-        // Close the UI
-        logseq.hideMainUI();
-    }
-    catch (error) {
-        console.error('Insert link error:', error);
-        logseq.UI.showMsg(`✗ Failed to insert link: ${error instanceof Error ? error.message : String(error)}`, 'error');
-    }
-}
 // Main plugin entry
 const main = async () => {
     console.log('POC 6: Search & Import with React UI loaded');
@@ -187,9 +144,6 @@ const main = async () => {
     const root = createRoot(el);
     // Function to show search UI
     const showSearchUI = async () => {
-        // Capture current block context
-        const block = await logseq.Editor.getCurrentBlock();
-        currentBlockContext = block ? { uuid: block.uuid } : null;
         root.render(_jsx(MantineProvider, { children: _jsx("div", { style: {
                     position: 'fixed',
                     top: 0,
@@ -206,7 +160,7 @@ const main = async () => {
                     if (e.target === e.currentTarget) {
                         logseq.hideMainUI();
                     }
-                }, children: _jsx(SearchUI, { onImport: importZoteroItem, onInsertLink: insertLinkToItem, checkIfInGraph: checkIfInGraph }) }) }));
+                }, children: _jsx(SearchUI, { onImport: importZoteroItem, checkIfInGraph: checkIfInGraph }) }) }));
         logseq.showMainUI();
     };
     // Register slash command: /zot
@@ -223,10 +177,10 @@ const main = async () => {
       <a data-on-click="showSearchUI"
          class="button"
          title="Search Zotero">
-        <span style="font-size: 14px;">🔍</span>
+        <span style="font-size: 14px;">📚</span>
       </a>
     `
     });
-    logseq.UI.showMsg('Zotero Search loaded! Use /zot or click 🔍', 'success', { timeout: 3000 });
+    logseq.UI.showMsg('Zotero Search loaded! Use /zot or click 📚', 'success', { timeout: 3000 });
 };
 logseq.ready(main).catch(console.error);

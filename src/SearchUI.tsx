@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Flex, Input, Text, Title, Badge, Button, Group } from '@mantine/core'
+import { Flex, Input, Text, Title, Badge } from '@mantine/core'
 
 interface ZoteroCreator {
   creatorType: string
@@ -28,7 +28,6 @@ interface ZoteroItem {
 
 interface SearchUIProps {
   onImport: (item: ZoteroItem) => Promise<void>
-  onInsertLink: (item: ZoteroItem) => Promise<void>
   checkIfInGraph: (item: ZoteroItem) => Promise<boolean>
 }
 
@@ -48,7 +47,7 @@ function extractYear(dateStr: string | undefined): string {
   return yearMatch ? yearMatch[1] : 'No date'
 }
 
-export const SearchUI: React.FC<SearchUIProps> = ({ onImport, onInsertLink, checkIfInGraph }) => {
+export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<Array<{ item: ZoteroItem; inGraph: boolean }>>([])
   const [searching, setSearching] = useState(false)
@@ -135,7 +134,6 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, onInsertLink, chec
       style={{
         width: '600px',
         maxHeight: '500px',
-        background: '#fff',
         border: '1px solid #ddd',
         borderRadius: '8px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
@@ -204,6 +202,12 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, onInsertLink, chec
               p="md"
               style={{
                 borderBottom: '1px solid #eee',
+                cursor: inGraph || isImporting ? 'default' : 'pointer',
+                opacity: inGraph || isImporting ? 0.6 : 1,
+                pointerEvents: isImporting ? 'none' : 'auto',
+              }}
+              onClick={() => {
+                if (!inGraph && !isImporting) handleImport(item)
               }}
             >
               <Flex direction="column" style={{ flex: 1 }}>
@@ -222,33 +226,14 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, onInsertLink, chec
                   {authors} ({year})
                 </Text>
               </Flex>
-              <Flex align="center" pl="md" gap="xs">
-                {inGraph && (
-                  <Badge size="sm" color="green" variant="light">
-                    ✓ In graph
-                  </Badge>
-                )}
-                <Group gap="xs">
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="blue"
-                    onClick={() => onInsertLink(item)}
-                    disabled={isImporting}
-                  >
-                    Insert Link
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="filled"
-                    color={inGraph ? 'gray' : 'green'}
-                    onClick={() => handleImport(item)}
-                    disabled={isImporting || inGraph}
-                    loading={isImporting}
-                  >
-                    {inGraph ? 'Already Imported' : 'Import'}
-                  </Button>
-                </Group>
+              <Flex align="center" pl="md">
+                <Badge
+                  size="sm"
+                  color={isImporting ? 'blue' : inGraph ? 'green' : 'red'}
+                  variant="light"
+                >
+                  {isImporting ? 'Importing...' : inGraph ? '✓ In graph' : 'Click to import'}
+                </Badge>
               </Flex>
             </Flex>
           )
