@@ -120,6 +120,8 @@ async function importZoteroItem(item) {
         }
         logseq.UI.showMsg(`✓ Imported: ${data.title || item.key}`, 'success');
         console.log(`[IMPORT SUCCESS] ${item.key}:`, page);
+        // Insert link at current block or journal
+        await insertLinkToPage(pageTitle);
     }
     catch (error) {
         console.error(`[IMPORT ERROR] ${item.key}:`, error);
@@ -131,6 +133,32 @@ async function importZoteroItem(item) {
         console.log(`[IMPORT END] ${item.key}`);
     }
 }
+// Insert link to page at current block or journal
+async function insertLinkToPage(pageTitle) {
+    try {
+        // Remove #zot tag for clean link
+        const linkTitle = pageTitle.replace(/ #zot$/, '');
+        if (currentBlockUUID) {
+            // Insert at current block
+            const content = await logseq.Editor.getEditingBlockContent();
+            await logseq.Editor.updateBlock(currentBlockUUID, `${content} [[${linkTitle}]]`);
+            console.log(`[LINK] Inserted at block ${currentBlockUUID}`);
+        }
+        else {
+            // Insert at today's journal
+            const today = new Date();
+            const journalDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+            await logseq.Editor.appendBlockInPage(journalDate, `[[${linkTitle}]]`);
+            console.log(`[LINK] Inserted in today's journal`);
+        }
+    }
+    catch (error) {
+        console.error('[LINK ERROR]:', error);
+        // Don't show error to user, link insertion is optional
+    }
+}
+// Store current block UUID for inserting links
+let currentBlockUUID = null;
 // Main plugin entry
 const main = async () => {
     console.log('POC 6: Search & Import with React UI loaded');
@@ -143,7 +171,9 @@ const main = async () => {
     // Create root once
     const root = createRoot(el);
     // Function to show search UI
-    const showSearchUI = async () => {
+    const showSearchUI = async (e) => {
+        // Capture current block UUID if provided
+        currentBlockUUID = e?.uuid || null;
         root.render(_jsx(MantineProvider, { children: _jsx("div", { style: {
                     position: 'fixed',
                     top: 0,
@@ -177,7 +207,7 @@ const main = async () => {
       <a data-on-click="showSearchUI"
          class="button"
          title="Search Zotero">
-        <span style="font-size: 14px;">📚</span>
+        <span style="font-size: 16px;">📚</span>
       </a>
     `
     });

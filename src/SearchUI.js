@@ -89,14 +89,16 @@ export const SearchUI = ({ onImport, checkIfInGraph }) => {
             maxHeight: '500px',
             border: '1px solid #ddd',
             borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-        }, children: [_jsx(Flex, { p: "md", style: { borderBottom: '1px solid #eee' }, children: _jsx(Input, { style: { flex: 1 }, placeholder: "Search Zotero...", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), onKeyDown: (e) => {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            background: 'transparent'
+        }, children: [_jsx(Flex, { p: "md", style: { borderBottom: '1px solid #eee', background: 'transparent' }, children: _jsx(Input, { style: { flex: 1 }, placeholder: "Search Zotero...", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), onKeyDown: (e) => {
                         if (e.key === 'Enter')
                             handleSearch();
-                    }, rightSection: results.length > 0 && (_jsxs(Text, { size: "xs", c: "dimmed", children: [results.length, " results"] })) }) }), error && (_jsx(Flex, { p: "md", justify: "center", children: _jsx(Text, { c: "red", size: "sm", children: error }) })), searching && (_jsx(Flex, { p: "md", justify: "center", children: _jsx(Text, { size: "sm", children: "Searching..." }) })), _jsx(Flex, { direction: "column", style: {
+                    }, rightSection: results.length > 0 && (_jsxs(Text, { size: "xs", c: "dimmed", children: [results.length, " results"] })) }) }), error && (_jsx(Flex, { p: "md", justify: "center", style: { background: 'transparent' }, children: _jsx(Text, { c: "red", size: "sm", children: error }) })), searching && (_jsx(Flex, { p: "md", justify: "center", style: { background: 'transparent' }, children: _jsx(Text, { size: "sm", children: "Searching..." }) })), _jsx(Flex, { direction: "column", style: {
                     flex: 1,
                     overflowY: 'auto',
-                    maxHeight: '400px'
+                    maxHeight: '400px',
+                    background: 'transparent'
                 }, children: results.map(({ item, inGraph }) => {
                     const data = item.data;
                     const authors = data.creators
@@ -112,6 +114,7 @@ export const SearchUI = ({ onImport, checkIfInGraph }) => {
                             cursor: inGraph || isImporting ? 'default' : 'pointer',
                             opacity: inGraph || isImporting ? 0.6 : 1,
                             pointerEvents: isImporting ? 'none' : 'auto',
+                            background: 'transparent'
                         }, onClick: () => {
                             if (!inGraph && !isImporting)
                                 handleImport(item);

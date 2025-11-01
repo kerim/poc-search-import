@@ -136,11 +136,12 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
         maxHeight: '500px',
         border: '1px solid #ddd',
         borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        background: 'transparent'
       }}
     >
       {/* Search Input */}
-      <Flex p="md" style={{ borderBottom: '1px solid #eee' }}>
+      <Flex p="md" style={{ borderBottom: '1px solid #eee', background: 'transparent' }}>
         <Input
           style={{ flex: 1 }}
           placeholder="Search Zotero..."
@@ -161,14 +162,14 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
 
       {/* Error Message */}
       {error && (
-        <Flex p="md" justify="center">
+        <Flex p="md" justify="center" style={{ background: 'transparent' }}>
           <Text c="red" size="sm">{error}</Text>
         </Flex>
       )}
 
       {/* Loading */}
       {searching && (
-        <Flex p="md" justify="center">
+        <Flex p="md" justify="center" style={{ background: 'transparent' }}>
           <Text size="sm">Searching...</Text>
         </Flex>
       )}
@@ -179,7 +180,8 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
         style={{
           flex: 1,
           overflowY: 'auto',
-          maxHeight: '400px'
+          maxHeight: '400px',
+          background: 'transparent'
         }}
       >
         {results.map(({ item, inGraph }) => {
@@ -205,6 +207,7 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
                 cursor: inGraph || isImporting ? 'default' : 'pointer',
                 opacity: inGraph || isImporting ? 0.6 : 1,
                 pointerEvents: isImporting ? 'none' : 'auto',
+                background: 'transparent'
               }}
               onClick={() => {
                 if (!inGraph && !isImporting) handleImport(item)
