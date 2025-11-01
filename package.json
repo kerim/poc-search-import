@@ -1,0 +1,25 @@
+{
+  "name": "poc-search-import",
+  "version": "0.1.0",
+  "description": "POC 6: Test search, select, and import with duplicate detection",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite build --watch"
+  },
+  "keywords": ["logseq", "plugin", "poc", "zotero", "search", "import", "db-graph"],
+  "author": "",
+  "license": "MIT",
+  "logseq": {
+    "id": "poc-search-import",
+    "title": "POC: Search & Import",
+    "icon": "./icon.svg"
+  },
+  "dependencies": {
+    "@logseq/libs": "^0.0.17"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}
