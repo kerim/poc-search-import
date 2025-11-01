@@ -51,6 +51,7 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<Array<{ item: ZoteroItem; inGraph: boolean }>>([])
   const [searching, setSearching] = useState(false)
+  const [importing, setImporting] = useState<string | null>(null) // Track which item is being imported
   const [error, setError] = useState<string | null>(null)
 
   const handleSearch = async () => {
@@ -103,7 +104,14 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
   }
 
   const handleImport = async (item: ZoteroItem) => {
+    // Prevent duplicate imports
+    if (importing === item.key) {
+      console.log('Already importing this item, skipping...')
+      return
+    }
+
     try {
+      setImporting(item.key)
       await onImport(item)
       // Refresh the in-graph status after import
       const newResults = await Promise.all(
@@ -115,6 +123,8 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
       setResults(newResults)
     } catch (err) {
       console.error('Import error:', err)
+    } finally {
+      setImporting(null)
     }
   }
 
@@ -183,6 +193,8 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
             : 'No authors'
           const year = extractYear(data.date)
 
+          const isImporting = importing === item.key
+
           return (
             <Flex
               key={item.key}
@@ -191,14 +203,15 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
               p="md"
               style={{
                 borderBottom: '1px solid #eee',
-                cursor: inGraph ? 'default' : 'pointer',
-                opacity: inGraph ? 0.6 : 1,
+                cursor: inGraph || isImporting ? 'default' : 'pointer',
+                opacity: inGraph || isImporting ? 0.6 : 1,
+                pointerEvents: isImporting ? 'none' : 'auto',
                 '&:hover': {
-                  background: inGraph ? 'transparent' : '#f5f5f5'
+                  background: inGraph || isImporting ? 'transparent' : '#f5f5f5'
                 }
               }}
               onClick={() => {
-                if (!inGraph) handleImport(item)
+                if (!inGraph && !isImporting) handleImport(item)
               }}
             >
               <Flex direction="column" style={{ flex: 1 }}>
@@ -220,10 +233,10 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
               <Flex align="center" pl="md">
                 <Badge
                   size="sm"
-                  color={inGraph ? 'green' : 'red'}
+                  color={isImporting ? 'blue' : inGraph ? 'green' : 'red'}
                   variant="light"
                 >
-                  {inGraph ? '✓ In graph' : 'Click to import'}
+                  {isImporting ? 'Importing...' : inGraph ? '✓ In graph' : 'Click to import'}
                 </Badge>
               </Flex>
             </Flex>

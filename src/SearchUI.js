@@ -22,6 +22,7 @@ export const SearchUI = ({ onImport, checkIfInGraph }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
     const [searching, setSearching] = useState(false);
+    const [importing, setImporting] = useState(null); // Track which item is being imported
     const [error, setError] = useState(null);
     const handleSearch = async () => {
         if (!searchQuery.trim()) {
@@ -61,7 +62,13 @@ export const SearchUI = ({ onImport, checkIfInGraph }) => {
         }
     };
     const handleImport = async (item) => {
+        // Prevent duplicate imports
+        if (importing === item.key) {
+            console.log('Already importing this item, skipping...');
+            return;
+        }
         try {
+            setImporting(item.key);
             await onImport(item);
             // Refresh the in-graph status after import
             const newResults = await Promise.all(results.map(async (r) => ({
@@ -72,6 +79,9 @@ export const SearchUI = ({ onImport, checkIfInGraph }) => {
         }
         catch (err) {
             console.error('Import error:', err);
+        }
+        finally {
+            setImporting(null);
         }
     };
     return (_jsxs(Flex, { direction: "column", style: {
@@ -97,16 +107,18 @@ export const SearchUI = ({ onImport, checkIfInGraph }) => {
                             .join(', ')
                         : 'No authors';
                     const year = extractYear(data.date);
+                    const isImporting = importing === item.key;
                     return (_jsxs(Flex, { direction: "row", justify: "space-between", p: "md", style: {
                             borderBottom: '1px solid #eee',
-                            cursor: inGraph ? 'default' : 'pointer',
-                            opacity: inGraph ? 0.6 : 1,
+                            cursor: inGraph || isImporting ? 'default' : 'pointer',
+                            opacity: inGraph || isImporting ? 0.6 : 1,
+                            pointerEvents: isImporting ? 'none' : 'auto',
                             '&:hover': {
-                                background: inGraph ? 'transparent' : '#f5f5f5'
+                                background: inGraph || isImporting ? 'transparent' : '#f5f5f5'
                             }
                         }, onClick: () => {
-                            if (!inGraph)
+                            if (!inGraph && !isImporting)
                                 handleImport(item);
-                        }, children: [_jsxs(Flex, { direction: "column", style: { flex: 1 }, children: [_jsxs(Title, { size: "sm", mb: 4, children: [data.title || 'Untitled', _jsx(Badge, { ml: 8, size: "sm", color: "gray", variant: "outline", children: data.itemType })] }), _jsxs(Text, { size: "xs", c: "dimmed", children: [authors, " (", year, ")"] })] }), _jsx(Flex, { align: "center", pl: "md", children: _jsx(Badge, { size: "sm", color: inGraph ? 'green' : 'red', variant: "light", children: inGraph ? '✓ In graph' : 'Click to import' }) })] }, item.key));
+                        }, children: [_jsxs(Flex, { direction: "column", style: { flex: 1 }, children: [_jsxs(Title, { size: "sm", mb: 4, children: [data.title || 'Untitled', _jsx(Badge, { ml: 8, size: "sm", color: "gray", variant: "outline", children: data.itemType })] }), _jsxs(Text, { size: "xs", c: "dimmed", children: [authors, " (", year, ")"] })] }), _jsx(Flex, { align: "center", pl: "md", children: _jsx(Badge, { size: "sm", color: isImporting ? 'blue' : inGraph ? 'green' : 'red', variant: "light", children: isImporting ? 'Importing...' : inGraph ? '✓ In graph' : 'Click to import' }) })] }, item.key));
                 }) })] }));
 };

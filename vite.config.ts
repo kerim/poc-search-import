@@ -1,16 +1,6 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import logseqDevPlugin from 'vite-plugin-logseq'
 
 export default defineConfig({
-  plugins: [react()],
-  base: './',
-  build: {
-    target: 'esnext',
-    minify: false,
-    sourcemap: false,
-    rollupOptions: {
-      input: 'index.html',
-      external: ['@logseq/libs'],
-    },
-  },
+  plugins: [logseqDevPlugin()],
 })
