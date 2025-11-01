@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Flex, Input, Text, Title, Badge } from '@mantine/core'
+import { Flex, Input, Text, Title, Badge, Button, Group } from '@mantine/core'
 
 interface ZoteroCreator {
   creatorType: string
@@ -28,6 +28,7 @@ interface ZoteroItem {
 
 interface SearchUIProps {
   onImport: (item: ZoteroItem) => Promise<void>
+  onInsertLink: (item: ZoteroItem) => Promise<void>
   checkIfInGraph: (item: ZoteroItem) => Promise<boolean>
 }
 
@@ -47,7 +48,7 @@ function extractYear(dateStr: string | undefined): string {
   return yearMatch ? yearMatch[1] : 'No date'
 }
 
-export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) => {
+export const SearchUI: React.FC<SearchUIProps> = ({ onImport, onInsertLink, checkIfInGraph }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<Array<{ item: ZoteroItem; inGraph: boolean }>>([])
   const [searching, setSearching] = useState(false)
@@ -203,15 +204,6 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
               p="md"
               style={{
                 borderBottom: '1px solid #eee',
-                cursor: inGraph || isImporting ? 'default' : 'pointer',
-                opacity: inGraph || isImporting ? 0.6 : 1,
-                pointerEvents: isImporting ? 'none' : 'auto',
-                '&:hover': {
-                  background: inGraph || isImporting ? 'transparent' : '#f5f5f5'
-                }
-              }}
-              onClick={() => {
-                if (!inGraph && !isImporting) handleImport(item)
               }}
             >
               <Flex direction="column" style={{ flex: 1 }}>
@@ -230,14 +222,33 @@ export const SearchUI: React.FC<SearchUIProps> = ({ onImport, checkIfInGraph }) 
                   {authors} ({year})
                 </Text>
               </Flex>
-              <Flex align="center" pl="md">
-                <Badge
-                  size="sm"
-                  color={isImporting ? 'blue' : inGraph ? 'green' : 'red'}
-                  variant="light"
-                >
-                  {isImporting ? 'Importing...' : inGraph ? '✓ In graph' : 'Click to import'}
-                </Badge>
+              <Flex align="center" pl="md" gap="xs">
+                {inGraph && (
+                  <Badge size="sm" color="green" variant="light">
+                    ✓ In graph
+                  </Badge>
+                )}
+                <Group gap="xs">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="blue"
+                    onClick={() => onInsertLink(item)}
+                    disabled={isImporting}
+                  >
+                    Insert Link
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="filled"
+                    color={inGraph ? 'gray' : 'green'}
+                    onClick={() => handleImport(item)}
+                    disabled={isImporting || inGraph}
+                    loading={isImporting}
+                  >
+                    {inGraph ? 'Already Imported' : 'Import'}
+                  </Button>
+                </Group>
               </Flex>
             </Flex>
           )

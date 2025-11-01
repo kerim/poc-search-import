@@ -183,6 +183,56 @@ async function importZoteroItem(item: ZoteroItem): Promise<void> {
   }
 }
 
+// Store current block context for inserting links
+let currentBlockContext: { uuid: string } | null = null
+
+// Insert link to Zotero item at current block or journal
+async function insertLinkToItem(item: ZoteroItem): Promise<void> {
+  try {
+    const data = item.data
+    const pageTitle = createPageTitle(data)
+
+    // Check if page exists, if not create it first
+    const alreadyExists = await checkIfInGraph(item)
+    if (!alreadyExists) {
+      logseq.UI.showMsg(`Page doesn't exist yet. Importing first...`, 'info')
+      await importZoteroItem(item)
+    }
+
+    // Remove #zot tag to get clean page name for link
+    const linkTitle = pageTitle.replace(/ #zot$/, '')
+
+    // Insert link at current block or today's journal
+    if (currentBlockContext) {
+      // Insert at current block
+      const block = await logseq.Editor.getBlock(currentBlockContext.uuid)
+      if (block) {
+        const currentContent = block.content || ''
+        const newContent = currentContent
+          ? `${currentContent} [[${linkTitle}]]`
+          : `[[${linkTitle}]]`
+        await logseq.Editor.updateBlock(currentBlockContext.uuid, newContent)
+        logseq.UI.showMsg(`✓ Link inserted at current block`, 'success')
+      }
+    } else {
+      // Insert at today's journal
+      const today = new Date()
+      const journalDate = today.toISOString().split('T')[0] // YYYY-MM-DD
+      await logseq.Editor.appendBlockInPage(journalDate, `[[${linkTitle}]]`)
+      logseq.UI.showMsg(`✓ Link inserted in today's journal`, 'success')
+    }
+
+    // Close the UI
+    logseq.hideMainUI()
+  } catch (error) {
+    console.error('Insert link error:', error)
+    logseq.UI.showMsg(
+      `✗ Failed to insert link: ${error instanceof Error ? error.message : String(error)}`,
+      'error'
+    )
+  }
+}
+
 // Main plugin entry
 const main = async () => {
   console.log('POC 6: Search & Import with React UI loaded')
@@ -197,8 +247,12 @@ const main = async () => {
   // Create root once
   const root = createRoot(el)
 
-  // Register slash command to open search
-  logseq.Editor.registerSlashCommand('Search Zotero', async () => {
+  // Function to show search UI
+  const showSearchUI = async () => {
+    // Capture current block context
+    const block = await logseq.Editor.getCurrentBlock()
+    currentBlockContext = block ? { uuid: block.uuid } : null
+
     root.render(
       <MantineProvider>
         <div
@@ -208,7 +262,7 @@ const main = async () => {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
+            // No background - let users see context
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -223,48 +277,24 @@ const main = async () => {
         >
           <SearchUI
             onImport={importZoteroItem}
+            onInsertLink={insertLinkToItem}
             checkIfInGraph={checkIfInGraph}
           />
         </div>
       </MantineProvider>
     )
     logseq.showMainUI()
-  })
+  }
+
+  // Register slash command: /zot
+  logseq.Editor.registerSlashCommand('zot', showSearchUI)
+
+  // Also keep the longer command for discoverability
+  logseq.Editor.registerSlashCommand('Search Zotero', showSearchUI)
 
   // Register toolbar button
   logseq.provideModel({
-    async showSearchUI() {
-      root.render(
-        <MantineProvider>
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-            }}
-            onClick={(e) => {
-              // Close on backdrop click
-              if (e.target === e.currentTarget) {
-                logseq.hideMainUI()
-              }
-            }}
-          >
-            <SearchUI
-              onImport={importZoteroItem}
-              checkIfInGraph={checkIfInGraph}
-            />
-          </div>
-        </MantineProvider>
-      )
-      logseq.showMainUI()
-    }
+    showSearchUI
   })
 
   logseq.App.registerUIItem('toolbar', {
@@ -273,12 +303,12 @@ const main = async () => {
       <a data-on-click="showSearchUI"
          class="button"
          title="Search Zotero">
-        <span>🔍</span>
+        <span style="font-size: 14px;">🔍</span>
       </a>
     `
   })
 
-  logseq.UI.showMsg('Zotero Search loaded! Click 🔍 or use /Search Zotero', 'success', { timeout: 3000 })
+  logseq.UI.showMsg('Zotero Search loaded! Use /zot or click 🔍', 'success', { timeout: 3000 })
 }
 
 logseq.ready(main).catch(console.error)
