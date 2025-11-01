@@ -54,11 +54,22 @@ function createPageTitle(data) {
 }
 // Check if item already exists in Logseq
 async function checkIfInGraph(item) {
-    const pageTitle = createPageTitle(item.data);
-    // Try to get the page (without #zot tag in the lookup)
-    const pageName = item.data.title || `Zotero Item ${item.data.key}`;
-    const page = await logseq.Editor.getPage(pageName);
-    return !!page;
+    // Check by zoteroKey property - most reliable method
+    const zoteroKey = item.key;
+    try {
+        // Query for pages with this zoteroKey property
+        // Use advanced search to find pages with matching zoteroKey
+        const query = `(property zoteroKey "${zoteroKey}")`;
+        const results = await logseq.DB.q(query);
+        return !!(results && results.length > 0);
+    }
+    catch (error) {
+        console.warn('Failed to query for duplicate, falling back to title check:', error);
+        // Fallback: check by page title
+        const pageName = item.data.title || `Zotero Item ${item.key}`;
+        const page = await logseq.Editor.getPage(pageName);
+        return !!page;
+    }
 }
 // Search Zotero items
 async function searchZoteroItems(query) {
@@ -163,21 +174,23 @@ async function importZoteroItem(item) {
 }
 // Store search results globally for UI access
 let currentSearchResults = [];
-// Display search results and let user select (simplified for POC)
+// Display search results and let user select
 async function displaySearchResults(items) {
     if (items.length === 0) {
         return;
     }
-    console.log('Search results:', items);
+    console.log('=== SEARCH RESULTS ===');
+    console.log(`Found ${items.length} items\n`);
     currentSearchResults = items;
-    // For POC, just import first non-duplicate item automatically
-    // In production, this would be a proper UI with selection
+    // Check duplicate status for all items
     logseq.UI.showMsg(`Checking ${items.length} items for duplicates...`, 'info');
+    const itemsWithStatus = [];
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const data = item.data;
         // Check if already in graph
         const inGraph = await checkIfInGraph(item);
+        itemsWithStatus.push({ item, inGraph });
         // Format authors for display
         const authors = data.creators
             ? data.creators
@@ -187,43 +200,67 @@ async function displaySearchResults(items) {
             : 'No authors';
         // Extract year
         const year = extractYear(data.date) || 'No date';
-        console.log(`Item ${i + 1}:`, {
-            title: data.title,
-            authors,
-            year,
-            itemType: data.itemType,
-            inGraph: inGraph ? 'YES' : 'NO'
-        });
-        if (!inGraph) {
-            // Found first item not in graph, import it
-            logseq.UI.showMsg(`Importing first new item: "${data.title || item.key}"`, 'info');
-            await importZoteroItem(item);
-            return;
-        }
-        else {
-            logseq.UI.showMsg(`Item ${i + 1} already in graph: "${data.title || item.key}"`, 'info', { timeout: 2000 });
-        }
+        const status = inGraph ? '✅ ALREADY IN GRAPH' : '⬜ NOT IN GRAPH';
+        console.log(`\n${i + 1}. ${status}`);
+        console.log(`   Title: ${data.title}`);
+        console.log(`   Authors: ${authors}`);
+        console.log(`   Year: ${year}`);
+        console.log(`   Type: ${data.itemType}`);
+        console.log(`   Zotero Key: ${item.key}`);
     }
-    // All items are duplicates
-    logseq.UI.showMsg('All search results are already in your graph!', 'success', { timeout: 5000 });
+    // Count new vs existing
+    const newItems = itemsWithStatus.filter(i => !i.inGraph);
+    const existingItems = itemsWithStatus.filter(i => i.inGraph);
+    console.log(`\n=== SUMMARY ===`);
+    console.log(`New items: ${newItems.length}`);
+    console.log(`Already in graph: ${existingItems.length}`);
+    console.log(`\nTo import a specific item, enter this in the console:`);
+    console.log(`  await window.importZoteroItemByNumber(N)`);
+    console.log(`where N is the item number (1-${items.length})`);
+    if (newItems.length === 0) {
+        logseq.UI.showMsg('All search results are already in your graph! Check console for details.', 'warning', { timeout: 5000 });
+    }
+    else {
+        logseq.UI.showMsg(`Found ${newItems.length} new item(s) and ${existingItems.length} duplicate(s). Check console for details.`, 'success', { timeout: 5000 });
+    }
+}
+// Helper function to import by item number (exposed to console)
+async function importByNumber(itemNumber) {
+    if (!currentSearchResults || currentSearchResults.length === 0) {
+        console.error('No search results available. Run a search first.');
+        return;
+    }
+    const index = itemNumber - 1;
+    if (index < 0 || index >= currentSearchResults.length) {
+        console.error(`Invalid item number. Please use 1-${currentSearchResults.length}`);
+        return;
+    }
+    const item = currentSearchResults[index];
+    await importZoteroItem(item);
 }
 // Main search and import function
-async function runSearchAndImport() {
-    // For POC simplicity, use a predefined search term
-    // In production, this would be a proper search UI
-    logseq.UI.showMsg('POC: Enter search term in console or use default "deglobalization"', 'info');
-    // For POC testing, let's use a simple prompt-like approach
-    // User can modify this constant and rebuild for different searches
-    const DEFAULT_SEARCH = 'deglobalization';
-    console.log(`POC 6: Searching for "${DEFAULT_SEARCH}"`);
-    console.log('To search for different terms, modify DEFAULT_SEARCH in src/index.ts');
+async function runSearchAndImport(queryOverride) {
+    let query = queryOverride;
+    if (!query) {
+        // For POC: ask user to enter search in console
+        logseq.UI.showMsg('Enter search term in console: await window.searchZotero("YOUR SEARCH TERM")', 'warning', { timeout: 8000 });
+        console.log('\n=== POC 6: SEARCH ZOTERO ===');
+        console.log('To search, enter in console:');
+        console.log('  await window.searchZotero("YOUR SEARCH TERM")');
+        console.log('\nExample:');
+        console.log('  await window.searchZotero("deglobalization")');
+        console.log('  await window.searchZotero("Roche")');
+        return;
+    }
+    console.log(`\n=== POC 6: SEARCHING ZOTERO ===`);
+    console.log(`Query: "${query}"`);
     try {
         // Search for items
-        const items = await searchZoteroItems(DEFAULT_SEARCH);
+        const items = await searchZoteroItems(query.trim());
         if (items.length === 0) {
             return;
         }
-        // Display results and let user select
+        // Display results
         await displaySearchResults(items);
     }
     catch (error) {
@@ -232,7 +269,16 @@ async function runSearchAndImport() {
     }
 }
 async function main() {
-    console.log('POC: Search & Import loaded');
+    console.log('\n=== POC 6: Search & Import LOADED ===');
+    console.log('\nUsage:');
+    console.log('1. Search: await window.searchZotero("YOUR SEARCH TERM")');
+    console.log('2. Import: await window.importZoteroItemByNumber(N)');
+    console.log('\nOr click 🔍 button for instructions');
+    // Expose functions to window for console access
+    // @ts-ignore
+    window.searchZotero = runSearchAndImport;
+    // @ts-ignore
+    window.importZoteroItemByNumber = importByNumber;
     // Register slash command
     logseq.Editor.registerSlashCommand('POC: Search & Import from Zotero', async () => {
         await runSearchAndImport();
@@ -253,6 +299,6 @@ async function main() {
       </a>
     `
     });
-    logseq.UI.showMsg('POC: Search & Import loaded! Use 🔍 button or /POC command', 'info');
+    logseq.UI.showMsg('POC 6 loaded! See console for usage', 'success', { timeout: 3000 });
 }
 logseq.ready(main).catch(console.error);
