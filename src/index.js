@@ -1,6 +1,5 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import '@logseq/libs';
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
@@ -56,9 +55,19 @@ async function checkIfInGraph(item) {
         return false;
     }
 }
+// Global import lock to prevent concurrent imports
+const importingItems = new Set();
 // Import Zotero item to Logseq
 async function importZoteroItem(item) {
+    // Global lock check
+    if (importingItems.has(item.key)) {
+        console.log(`[GUARD] Already importing ${item.key}, aborting`);
+        return;
+    }
     try {
+        // Acquire lock
+        importingItems.add(item.key);
+        console.log(`[IMPORT START] ${item.key}`);
         const data = item.data;
         // Check for duplicate FIRST
         const alreadyExists = await checkIfInGraph(item);
@@ -110,11 +119,16 @@ async function importZoteroItem(item) {
             ]);
         }
         logseq.UI.showMsg(`✓ Imported: ${data.title || item.key}`, 'success');
-        console.log('Imported item:', page);
+        console.log(`[IMPORT SUCCESS] ${item.key}:`, page);
     }
     catch (error) {
-        console.error('Import error:', error);
+        console.error(`[IMPORT ERROR] ${item.key}:`, error);
         logseq.UI.showMsg(`✗ Failed to import: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    }
+    finally {
+        // Always release lock
+        importingItems.delete(item.key);
+        console.log(`[IMPORT END] ${item.key}`);
     }
 }
 // Main plugin entry
@@ -130,7 +144,29 @@ const main = async () => {
     const root = createRoot(el);
     // Register slash command to open search
     logseq.Editor.registerSlashCommand('Search Zotero', async () => {
-        root.render(_jsx(React.StrictMode, { children: _jsx(MantineProvider, { children: _jsx("div", { style: {
+        root.render(_jsx(MantineProvider, { children: _jsx("div", { style: {
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                }, onClick: (e) => {
+                    // Close on backdrop click
+                    if (e.target === e.currentTarget) {
+                        logseq.hideMainUI();
+                    }
+                }, children: _jsx(SearchUI, { onImport: importZoteroItem, checkIfInGraph: checkIfInGraph }) }) }));
+        logseq.showMainUI();
+    });
+    // Register toolbar button
+    logseq.provideModel({
+        async showSearchUI() {
+            root.render(_jsx(MantineProvider, { children: _jsx("div", { style: {
                         position: 'fixed',
                         top: 0,
                         left: 0,
@@ -146,29 +182,7 @@ const main = async () => {
                         if (e.target === e.currentTarget) {
                             logseq.hideMainUI();
                         }
-                    }, children: _jsx(SearchUI, { onImport: importZoteroItem, checkIfInGraph: checkIfInGraph }) }) }) }));
-        logseq.showMainUI();
-    });
-    // Register toolbar button
-    logseq.provideModel({
-        async showSearchUI() {
-            root.render(_jsx(React.StrictMode, { children: _jsx(MantineProvider, { children: _jsx("div", { style: {
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: 'rgba(0,0,0,0.5)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1000,
-                        }, onClick: (e) => {
-                            // Close on backdrop click
-                            if (e.target === e.currentTarget) {
-                                logseq.hideMainUI();
-                            }
-                        }, children: _jsx(SearchUI, { onImport: importZoteroItem, checkIfInGraph: checkIfInGraph }) }) }) }));
+                    }, children: _jsx(SearchUI, { onImport: importZoteroItem, checkIfInGraph: checkIfInGraph }) }) }));
             logseq.showMainUI();
         }
     });

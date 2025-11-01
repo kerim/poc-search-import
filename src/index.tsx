@@ -84,9 +84,22 @@ async function checkIfInGraph(item: ZoteroItem): Promise<boolean> {
   }
 }
 
+// Global import lock to prevent concurrent imports
+const importingItems = new Set<string>()
+
 // Import Zotero item to Logseq
 async function importZoteroItem(item: ZoteroItem): Promise<void> {
+  // Global lock check
+  if (importingItems.has(item.key)) {
+    console.log(`[GUARD] Already importing ${item.key}, aborting`)
+    return
+  }
+
   try {
+    // Acquire lock
+    importingItems.add(item.key)
+    console.log(`[IMPORT START] ${item.key}`)
+
     const data = item.data
 
     // Check for duplicate FIRST
@@ -155,14 +168,18 @@ async function importZoteroItem(item: ZoteroItem): Promise<void> {
     }
 
     logseq.UI.showMsg(`✓ Imported: ${data.title || item.key}`, 'success')
-    console.log('Imported item:', page)
+    console.log(`[IMPORT SUCCESS] ${item.key}:`, page)
 
   } catch (error) {
-    console.error('Import error:', error)
+    console.error(`[IMPORT ERROR] ${item.key}:`, error)
     logseq.UI.showMsg(
       `✗ Failed to import: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
+  } finally {
+    // Always release lock
+    importingItems.delete(item.key)
+    console.log(`[IMPORT END] ${item.key}`)
   }
 }
 
@@ -183,7 +200,41 @@ const main = async () => {
   // Register slash command to open search
   logseq.Editor.registerSlashCommand('Search Zotero', async () => {
     root.render(
-      <React.StrictMode>
+      <MantineProvider>
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={(e) => {
+            // Close on backdrop click
+            if (e.target === e.currentTarget) {
+              logseq.hideMainUI()
+            }
+          }}
+        >
+          <SearchUI
+            onImport={importZoteroItem}
+            checkIfInGraph={checkIfInGraph}
+          />
+        </div>
+      </MantineProvider>
+    )
+    logseq.showMainUI()
+  })
+
+  // Register toolbar button
+  logseq.provideModel({
+    async showSearchUI() {
+      root.render(
         <MantineProvider>
           <div
             style={{
@@ -211,44 +262,6 @@ const main = async () => {
             />
           </div>
         </MantineProvider>
-      </React.StrictMode>
-    )
-    logseq.showMainUI()
-  })
-
-  // Register toolbar button
-  logseq.provideModel({
-    async showSearchUI() {
-      root.render(
-        <React.StrictMode>
-          <MantineProvider>
-            <div
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-              }}
-              onClick={(e) => {
-                // Close on backdrop click
-                if (e.target === e.currentTarget) {
-                  logseq.hideMainUI()
-                }
-              }}
-            >
-              <SearchUI
-                onImport={importZoteroItem}
-                checkIfInGraph={checkIfInGraph}
-              />
-            </div>
-          </MantineProvider>
-        </React.StrictMode>
       )
       logseq.showMainUI()
     }
